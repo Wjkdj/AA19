@@ -1,0 +1,21 @@
+{
+  "name": "multi_signals",
+  "version": "1.0.0",
+  "description": "multi-signals-node project",
+  "main": "aa19_multi_signals.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "multi",
+    "signals",
+    "arduino",
+    "node"
+  ],
+  "author": "aa19",
+  "license": "MIT",
+  "dependencies": {
+    "serialport": "^9.2.4",
+    "socket.io": "^2.4.1"
+  }
+}
