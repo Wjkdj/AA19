@@ -1,0 +1,507 @@
+<!DOCTYPE html> 
+<head>  
+  <meta charset="utf-8">
+  <title>plotly.js client: Real time signals from sensors</title> 
+  <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+  <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/2.3.1/socket.io.js"></script>
+
+  <script src="gauge.min.js"></script>
+
+  <style>body{padding:0;margin:30;background:#fff}</style>
+</head>
+
+<body>  <!-- style="width:100%;height:100%"> -->
+<!-- Plotly chart will be drawn inside this DIV -->
+<h1 align="center">Real-time 모션 인식(9-축 IMU)</h1>
+<!-- <h3 align="center"> Signal (temp, lumi, humid) : <span id="data"> </span> </h3>  -->
+<div align="center">
+    <!-- 1st gauge -->
+    <canvas id="gauge1"> </canvas>  
+    <!-- 2nd gauge -->
+    <canvas id="gauge2"> </canvas>
+    <!-- 3rd gauge -->
+    <canvas id="gauge3"> </canvas>
+</div>
+
+<h3 align="center"> on Time: <span id="time"> </span> </h3> 
+
+<div id="myDiv"></div> <!-- graph here! -->
+
+<hr>
+
+  <script>
+  /* JAVASCRIPT CODE GOES HERE */
+    var streamPlot = document.getElementById('myDiv');
+    var ctime = document.getElementById('time');
+    
+    var tArray = [], // time of data arrival
+        
+        xTrack1 = [], // value of sensor 1 : temperature
+        yTrack1 = [], // value of sensor 2 : Luminosity
+        zTrack1 = [], // value of sensor 3 : Humid
+        
+        xTrack2 = [],
+        yTrack2 = [], 
+        zTrack2 = [],
+        
+        xTrack3 = [], 
+        yTrack3 = [], 
+        zTrack3 = [], 
+        
+        numPts = 50, // number of data points in x-axis                
+        dtda = [],  // 1 x 3 array : [date, data1, data2] from sensors
+        ddtda = [],
+        preX1 = -1,
+        preY1 = -1,
+        preZ1 = -1,
+
+        preX2 = -1,
+        preY2 = -1,
+        preZ2 = -1,
+
+        preX3 = -1,
+        preY3 = -1,
+        preZ3 = -1,
+        initFlag = true;
+
+    var socket = io.connect('localhost:3000'); // port = 3000 
+
+    // var cdata = document.getElementById('data');
+
+    socket.on('connect', function () {
+        socket.on('message', function (msg) {
+
+            
+            // Display signal on web browser           
+            // ctime.innerHTML = msg[0];
+            // cdata.innerHTML = msg[1] + "," + msg[2] + "," + msg[3];
+
+            // initial plot
+            if(msg[0]!='' && initFlag){
+                dtda[0]=msg[0];
+                dtda[1]=parseFloat(msg[1]);  // accel_x
+                dtda[2]=parseFloat(msg[2]);    // accel_y
+                dtda[3]=parseFloat(msg[3]);    // accel_z
+
+                dtda[4]=parseFloat(msg[4]);     //gyro_x
+                dtda[5]=parseFloat(msg[5]);     //gyro_y
+                dtda[6]=parseFloat(msg[6]);     //gyro_z
+                
+                dtda[7]=parseFloat(msg[7]);     //mag_x
+                dtda[8]=parseFloat(msg[8]);     //mag_y
+                dtda[9]=parseFloat(msg[9]);     //mag_z
+
+                init();  // start streaming
+                initFlag=false;
+            }
+
+            dtda[0]=msg[0];
+            dtda[1]=parseFloat(msg[1]);  // accel_x
+            dtda[2]=parseFloat(msg[2]);    // accel_y
+            dtda[3]=parseFloat(msg[3]);    // accel_z
+
+            dtda[4]=parseFloat(msg[4]);     //gyro_x
+            dtda[5]=parseFloat(msg[5]);     //gyro_y
+            dtda[6]=parseFloat(msg[6]);     //gyro_z
+            
+            dtda[7]=parseFloat(msg[7]);     //mag_x
+            dtda[8]=parseFloat(msg[8]);     //mag_y
+            dtda[9]=parseFloat(msg[9]);     //mag_z
+            
+            ddtda[0] = Math.sqrt(Math.pow(dtda[1],2)+Math.pow(dtda[2],2)+Math.pow(dtda[3],2));
+            ddtda[1] = Math.sqrt(Math.pow(dtda[4],2)+Math.pow(dtda[5],2)+Math.pow(dtda[6],2));
+            ddtda[2] = Math.sqrt(Math.pow(dtda[7],2)+Math.pow(dtda[8],2)+Math.pow(dtda[9],2));
+
+            // Only when any of temperature or Luminosity is different from 
+            // the previous one, the screen is redrawed.
+            if (dtda[1] != preX1 || dtda[2] != preY1 || dtda[3] != preZ1
+                ||dtda[4] != preX2 || dtda[5] != preY2 || dtda[6] != preZ2
+                ||dtda[7] != preX3 || dtda[8] != preY3 || dtda[9] != preZ3) { 
+                preX1 = dtda[1];  
+                preY1 = dtda[2];
+                preZ1 = dtda[3];
+
+                preX2 = dtda[4];  
+                preY2 = dtda[5];
+                preZ2 = dtda[6];
+
+                preX3 = dtda[7];  
+                preY3 = dtda[8];
+                preZ3 = dtda[9];
+
+                ctime.innerHTML = dtda[0];
+                gauge_accel.setValue(ddtda[0]);
+                gauge_gyro.setValue(ddtda[1]);
+                gauge_mag.setValue(ddtda[2]);
+         
+                tArray = tArray.concat(dtda[0]);
+                tArray.splice(0, 1);
+
+                xTrack1 = xTrack1.concat(dtda[1]);  
+                xTrack1.splice(0, 1); 
+                yTrack1 = yTrack1.concat(dtda[2]);
+                yTrack1.splice(0, 1);
+                zTrack1 = zTrack1.concat(dtda[3]);  
+                zTrack1.splice(0, 1);
+
+                xTrack2 = xTrack2.concat(dtda[4]);  
+                xTrack2.splice(0, 1); 
+                yTrack2 = yTrack2.concat(dtda[5]);   
+                yTrack2.splice(0, 1);
+                zTrack2 = zTrack2.concat(dtda[6]);   
+                zTrack2.splice(0, 1);
+
+                xTrack3 = xTrack3.concat(dtda[7]);  
+                xTrack3.splice(0, 1); 
+                yTrack3 = yTrack3.concat(dtda[8]);   
+                yTrack3.splice(0, 1);
+                zTrack3 = zTrack3.concat(dtda[9]);   
+                zTrack3.splice(0, 1);
+
+                var update = {
+                    x: [tArray, tArray, tArray,tArray, tArray, tArray,tArray, tArray, tArray],
+                    y: [xTrack1, yTrack1, zTrack1,xTrack2, yTrack2, zTrack2,xTrack3, yTrack3, zTrack3]
+                }
+
+
+                Plotly.update(streamPlot, update);
+            }                    
+        });
+    }); 
+
+    function init() {
+        for ( i = 0; i < numPts; i++) {
+            tArray.push(dtda[0]); 
+            xTrack1.push(dtda[1]);
+            yTrack1.push(dtda[2]); 
+            zTrack1.push(dtda[3]);
+
+            xTrack2.push(dtda[4]);  
+            yTrack2.push(dtda[5]); 
+            zTrack2.push(dtda[6]);
+
+            xTrack3.push(dtda[7]);  
+            yTrack3.push(dtda[8]); 
+            zTrack3.push(dtda[9]);
+        }
+
+        Plotly.newPlot(streamPlot, data, layout);
+    }
+    
+    // data1
+    var data = [{
+        x : tArray,
+        y : xTrack3,
+        xaxis: 'x1',
+        yaxis : 'y1',
+        name : 'accel_x',
+        mode: "markers+lines",  // "lines+markers"
+        line: {
+            color: "rgb(255, 0, 0)", 
+            width: 2
+        }, 
+        marker: {
+            color: "rgb(255, 0, 0)", 
+            size: 4, 
+            line: {
+              color: "rgb(255, 0, 0)", 
+              width: 0.5
+          }
+      }
+  }, {
+    x : tArray,
+    y : yTrack1,
+    name : 'accel_y',
+    xaxis: 'x1',
+    yaxis : 'y1',
+        mode: "markers+lines",  // "lines+markers"
+        line: {
+            color: "rgb(0, 0, 255)", 
+            width: 2
+        }, 
+        marker: {
+            color: "rgb(0, 0, 255)", 
+            size: 4, 
+            line: {
+              color: "rgb(0, 0, 255)", 
+              width: 0.5
+          }
+      }
+  }, {
+      x : tArray,
+      y : zTrack1,
+      name : 'accel_z',
+      xaxis: 'x1',
+      yaxis: 'y1',
+        mode: "markers+lines",
+        line: {
+            color: "rgb(0, 255, 0)",
+            width: 2
+        },
+        marker: {
+            color: "rgb(0, 255, 0)",
+            size: 4,
+            line: {
+                color: "rgb(0, 255, 0)",
+                width: 0.5
+            }
+        }
+  },{
+        x : tArray,
+        y : xTrack2,
+        xaxis: 'x2',
+        yaxis: 'y2',
+        name : 'gyro_x',
+        mode: "markers+lines",  // "lines+markers"
+        line: {
+            color: "rgb(255, 0, 0)", 
+            width: 2
+        }, 
+        marker: {
+            color: "rgb(255, 0, 0)", 
+            size: 4, 
+            line: {
+              color: "rgb(255, 0, 0)", 
+              width: 0.5
+          }
+      }
+  },{
+    x : tArray,
+    y : yTrack2,
+    name : 'gyro_y',
+    xaxis: 'x2',
+    yaxis : 'y2',
+        mode: "markers+lines",  // "lines+markers"
+        line: {
+            color: "rgb(0, 0, 255)", 
+            width: 2
+        }, 
+        marker: {
+            color: "rgb(0, 0, 255)", 
+            size: 4, 
+            line: {
+              color: "rgb(0, 0, 255)", 
+              width: 0.5
+          }
+      }
+  }, {
+      x : tArray,
+      y : zTrack2,
+      name : 'gyro_z',
+      xaxis: 'x2',
+      yaxis: 'y2',
+        mode: "markers+lines",
+        line: {
+            color: "rgb(0, 255, 0)",
+            width: 2
+        },
+        marker: {
+            color: "rgb(0, 255, 0)",
+            size: 4,
+            line: {
+                color: "rgb(0, 255, 0)",
+                width: 0.5
+            }
+        }
+  },{
+        x : tArray,
+        y : xTrack3,
+        xaxis: 'x3',
+        yaxis: 'y3',
+        name : 'mag_x',
+        mode: "markers+lines",  // "lines+markers"
+        line: {
+            color: "rgb(255, 0, 0)", 
+            width: 2
+        }, 
+        marker: {
+            color: "rgb(255, 0, 0)", 
+            size: 4, 
+            line: {
+              color: "rgb(255, 0, 0)", 
+              width: 0.5
+          }
+      }
+  },{
+    x : tArray,
+    y : yTrack3,
+    name : 'mag_y',
+    xaxis: 'x3',
+    yaxis : 'y3',
+        mode: "markers+lines",  // "lines+markers"
+        line: {
+            color: "rgb(0, 0, 255)", 
+            width: 2
+        }, 
+        marker: {
+            color: "rgb(0, 0, 255)", 
+            size: 4, 
+            line: {
+              color: "rgb(0, 0, 255)", 
+              width: 0.5
+          }
+      }
+  }, {
+      x : tArray,
+      y : zTrack3,
+      name : 'mag_z',
+      xaxis: 'x3',
+      yaxis: 'y3',
+        mode: "markers+lines",
+        line: {
+            color: "rgb(0, 255, 0)",
+            width: 2
+        },
+        marker: {
+            color: "rgb(0, 255, 0)",
+            size: 4,
+            line: {
+                color: "rgb(0, 255, 0)",
+                width: 0.5
+            }
+        }
+  }];
+
+  var layout = {
+    xaxis : {
+        title : 'time',
+        domain : [0, 1]
+    },
+    yaxis : {
+        title : 'mag',
+        autorange: true,
+        domain :[0, 0.3],
+        range : [-40,40]
+    },
+    xaxis2 : {
+        title : '',
+        domain : [0, 1],
+        position : 0.6,
+        showticklabels: false
+    },
+    yaxis2 : {
+        title : 'gyro',
+        autorange: true,
+        domain : [0.4, 0.6],
+        range : [-1,1]
+    },
+    xaxis3 : {
+        domain : [0, 1],
+        position : 0.7,
+        showticklabels: false
+      	
+    },
+    yaxis3 : {
+        title : 'accel',
+        autorange: true,
+        domain :[0.7, 1] ,
+        range : [-1,1]
+    }
+};
+
+
+     // gauge configuration
+     var gauge_accel = new Gauge({
+        renderTo    : 'gauge1',
+        width       : 300,
+        height      : 300,
+        glow        : true,
+        units       : 'm/s^2',
+        valueFormat : { int : 1, dec : 2 },
+        title       : "accel",
+        minValue    : -5,
+        maxValue    : 3,
+        majorTicks  : ['-5','-4','-3','-2','-1','0','1','2','3'],
+        minorTicks  : 10,
+        strokeTicks : false,
+        highlights  : [
+        { from : -30,   to : -20, color : 'rgba(0, 0, 255, 1)' },
+        { from : -20,   to : -10, color : 'rgba(0, 0, 255, .5)' },
+        { from : -10, to : 0, color : 'rgba(0, 0, 255, .25)' },
+        { from : 0,   to : 10, color : 'rgba(0, 255, 0, .1)' },
+        { from : 10, to : 20, color : 'rgba(0, 255, 0, .25)' },
+        { from : 20, to : 30, color : 'rgba(255, 0,  0, .25)' },
+        { from : 30, to : 40, color : 'rgba(255, 0,  0, .5)' },
+        { from : 40, to : 50, color : 'rgba(255, 0,  0, 1)' }
+        ],
+        colors      : {
+            plate      : 'cyan',
+            majorTicks : '#000',
+            minorTicks : '#444',
+            title      : '#000',
+            units      : '#f00',
+            numbers    : '#777',
+            needle     : { start : 'rgba(240, 128, 128, 1)', 
+            end : 'rgba(255, 160, 122, .9)' }
+        }
+    });
+    gauge_accel.draw();
+
+    var gauge_gyro = new Gauge({
+        renderTo    : 'gauge2',
+        width       : 300,
+        height      : 300,
+        glow        : true,
+        units       : 'DPS',
+        valueFormat : { int : 3, dec : 2 },
+        title       : "gyro",
+        minValue    : -1000,
+        maxValue    : 1000,  // new
+        majorTicks  : ['-1000','-800','-600','-400','-200','0','200','400','600','800','1000'],
+        minorTicks  : 10,
+        strokeTicks : false,
+        highlights  : [
+        { from : 0,   to : 100, color : '#aaa' },
+        { from : 100, to : 200, color : '#ccc' },
+        { from : 200, to : 300, color : '#ddd' },
+        { from : 300, to : 400, color : '#eee' },
+        { from : 400, to : 500, color : '#fff' }
+        ],
+        colors      : {
+            plate      : 'gray',
+            majorTicks : '#f5f5f5',
+            minorTicks : '#aaa',
+            title      : '#fff',
+            units      : '#ccc',
+            numbers    : '#eee',
+            needle     : { start : 'rgba(240, 128, 128, 1)', 
+            end : 'rgba(255, 160, 122, .9)' }
+        }
+    });
+    gauge_gyro.draw();
+
+    var gauge_mag = new Gauge({
+        renderTo    : 'gauge3',
+        width       : 300,
+        height      : 300,
+        glow        : true,
+        units       : 'T',
+        valueFormat : { int : 2, dec : 2 },
+        title       : "mag",
+        minValue    : -60,
+        maxValue    : 60,  // new
+        majorTicks  : ['-100','-75','-50','-25','0','25','50','75','100'],
+        minorTicks  : 10,
+        strokeTicks : false,
+        highlights  : [
+        { from : 00,   to : 20, color : 'rgba(0, 255, 0, .1)' },
+        { from : 20, to : 40, color : 'rgba(0, 255, 0, .25)' },
+        { from : 40, to : 60, color : 'rgba(255, 0,  0, .25)' },
+        { from : 60, to : 80, color : 'rgba(255, 0,  0, .5)' },
+        { from : 80, to : 100, color : 'rgba(255, 0,  0, 1)' }
+        ],
+        colors      : {
+            plate      : 'purple',
+            majorTicks : '#f5f5f5',
+            minorTicks : '#aaa',
+            title      : '#fff',
+            units      : '#ccc',
+            numbers    : '#eee',
+            needle     : { start : 'rgba(240, 128, 128, 1)', 
+            end : 'rgba(255, 160, 122, .9)' }
+        }
+    });
+    gauge_mag.draw();
+  </script>
+</body>
+</html>
